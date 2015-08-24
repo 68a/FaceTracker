@@ -16,9 +16,13 @@
 package com.google.android.gms.samples.vision.face.facetracker;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.util.Log;
+import android.view.ViewDebug;
 
 import com.google.android.gms.vision.CameraSource;
 import com.google.android.gms.vision.MultiProcessor;
@@ -40,6 +44,9 @@ public final class FaceTrackerActivity extends Activity {
     private CameraSource mCameraSource;
     private CameraSourcePreview mPreview;
     private GraphicOverlay mGraphicOverlay;
+    private int lastFaceId;
+    private CountDownTimer mCountDownTimeer;
+    private AlertDialog.Builder mTimeoutAlert;
 
     //==============================================================================================
     // Activity Methods
@@ -78,6 +85,36 @@ public final class FaceTrackerActivity extends Activity {
                 .setFacing(CameraSource.CAMERA_FACING_FRONT)
                 .setRequestedFps(30.0f)
                 .build();
+
+        mTimeoutAlert = new AlertDialog.Builder(context)
+                .setTitle("Delete entry")
+                .setMessage("Are you sure you want to delete this entry?")
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // continue with delete
+                    }
+                })
+                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // do nothing
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert);
+
+        mCountDownTimeer = new CountDownTimer(30000, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+                System.out.println("seconds remaining: " + millisUntilFinished / 1000);
+            }
+
+            public void onFinish() {
+                System.out.println("done!");
+              //  mTimeoutAlert.show();
+            }
+        };
+
+
+
     }
 
     /**
@@ -161,6 +198,12 @@ public final class FaceTrackerActivity extends Activity {
         @Override
         public void onNewItem(int faceId, Face item) {
             mFaceGraphic.setId(faceId);
+            if (faceId != lastFaceId) {
+                System.out.println("facetracer.....faceId changed!!!!!! " + faceId + " lastId " + lastFaceId);
+                mCountDownTimeer.start();
+            }
+            lastFaceId = faceId;
+            System.out.println("facetracer.....new faceId !!!!!!");
         }
 
         /**
@@ -170,6 +213,7 @@ public final class FaceTrackerActivity extends Activity {
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             mOverlay.add(mFaceGraphic);
             mFaceGraphic.updateFace(face);
+
         }
 
         /**
