@@ -18,11 +18,10 @@ package com.google.android.gms.samples.vision.face.facetracker;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
-import android.view.ViewDebug;
 
 import com.google.android.gms.vision.CameraSource;
 import com.google.android.gms.vision.MultiProcessor;
@@ -40,13 +39,15 @@ import java.io.IOException;
  */
 public final class FaceTrackerActivity extends Activity {
     private static final String TAG = "FaceTracker";
+    private int waitTime = 2*60*1000;
 
     private CameraSource mCameraSource;
     private CameraSourcePreview mPreview;
     private GraphicOverlay mGraphicOverlay;
     private int lastFaceId;
-    private CountDownTimer mCountDownTimeer;
+    private CountDownTimer mCountDownTimer;
     private AlertDialog.Builder mTimeoutAlert;
+    private CountDownGraphic mCountDownGraphic;
 
     //==============================================================================================
     // Activity Methods
@@ -60,11 +61,15 @@ public final class FaceTrackerActivity extends Activity {
         super.onCreate(icicle);
         setContentView(R.layout.main);
 
+        final Context[] context = {getApplicationContext()};
+
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
 
-        Context context = getApplicationContext();
-        FaceDetector detector = new FaceDetector.Builder(context).build();
+
+
+
+        FaceDetector detector = new FaceDetector.Builder(context[0]).build();
         detector.setProcessor(
                 new MultiProcessor.Builder<>(new GraphicFaceTrackerFactory()).build());
 
@@ -80,36 +85,26 @@ public final class FaceTrackerActivity extends Activity {
             Log.w(TAG, "Face detector dependencies are not yet available.");
         }
 
-        mCameraSource = new CameraSource.Builder(context, detector)
+        mCameraSource = new CameraSource.Builder(context[0], detector)
                 .setRequestedPreviewSize(640, 480)
                 .setFacing(CameraSource.CAMERA_FACING_FRONT)
                 .setRequestedFps(30.0f)
                 .build();
 
-        mTimeoutAlert = new AlertDialog.Builder(context)
-                .setTitle("Delete entry")
-                .setMessage("Are you sure you want to delete this entry?")
-                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // continue with delete
-                    }
-                })
-                .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        // do nothing
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert);
 
-        mCountDownTimeer = new CountDownTimer(30000, 1000) {
+
+        mCountDownTimer = new CountDownTimer(waitTime, 1000) {
 
             public void onTick(long millisUntilFinished) {
                 System.out.println("seconds remaining: " + millisUntilFinished / 1000);
+                mCountDownGraphic.setSeconds( millisUntilFinished /1000 );
             }
 
             public void onFinish() {
                 System.out.println("done!");
-              //  mTimeoutAlert.show();
+
+                MediaPlayer mp = MediaPlayer.create(FaceTrackerActivity.this, R.raw.jingle_bells_sms);
+                mp.start();
             }
         };
 
@@ -187,9 +182,11 @@ public final class FaceTrackerActivity extends Activity {
         private GraphicOverlay mOverlay;
         private FaceGraphic mFaceGraphic;
 
+
         GraphicFaceTracker(GraphicOverlay overlay) {
             mOverlay = overlay;
             mFaceGraphic = new FaceGraphic(overlay);
+            mCountDownGraphic = new CountDownGraphic(overlay);
         }
 
         /**
@@ -200,10 +197,12 @@ public final class FaceTrackerActivity extends Activity {
             mFaceGraphic.setId(faceId);
             if (faceId != lastFaceId) {
                 System.out.println("facetracer.....faceId changed!!!!!! " + faceId + " lastId " + lastFaceId);
-                mCountDownTimeer.start();
+                //mCountDownTimer.start();
             }
             lastFaceId = faceId;
             System.out.println("facetracer.....new faceId !!!!!!");
+            mCountDownTimer.start();
+
         }
 
         /**
@@ -212,7 +211,9 @@ public final class FaceTrackerActivity extends Activity {
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             mOverlay.add(mFaceGraphic);
+            mOverlay.add(mCountDownGraphic);
             mFaceGraphic.updateFace(face);
+            mCountDownGraphic.update();
 
         }
 
@@ -224,6 +225,8 @@ public final class FaceTrackerActivity extends Activity {
         @Override
         public void onMissing(FaceDetector.Detections<Face> detectionResults) {
             mOverlay.remove(mFaceGraphic);
+            mOverlay.remove(mCountDownGraphic);
+            mCountDownTimer.cancel();
         }
 
         /**
@@ -233,6 +236,7 @@ public final class FaceTrackerActivity extends Activity {
         @Override
         public void onDone() {
             mOverlay.remove(mFaceGraphic);
+            mOverlay.remove(mCountDownGraphic);
         }
     }
 }
